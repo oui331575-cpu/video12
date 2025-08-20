@@ -108,3 +108,5 @@ export function PriceCard({ type, selectedSeasons = [], episodeCount = 0, isAnim
     </div>
   );
 }
+
+export { PriceCard };

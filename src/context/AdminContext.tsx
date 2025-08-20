@@ -692,3 +692,5 @@ export function useAdmin() {
   }
   return context;
 }
+
+export { AdminProvider, useAdmin };

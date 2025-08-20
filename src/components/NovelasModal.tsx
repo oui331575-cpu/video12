@@ -780,3 +780,5 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
     </div>
   );
 }
+
+export { NovelasModal };

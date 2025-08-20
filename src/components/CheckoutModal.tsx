@@ -551,3 +551,6 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     </div>
   );
 }
+
+export { CheckoutModal };
+export type { CustomerInfo, OrderData };

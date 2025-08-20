@@ -12,7 +12,8 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ item, type }: MovieCardProps) {
-  const { addItem, removeItem, isInCart } = useCart();
+  const cartContext = useCart();
+  const { addItem, removeItem, isInCart } = cartContext || {};
   const [showAnimation, setShowAnimation] = React.useState(false);
   
   const title = 'title' in item ? item.title : item.name;
@@ -22,7 +23,7 @@ export function MovieCard({ item, type }: MovieCardProps) {
     ? `${IMAGE_BASE_URL}/${POSTER_SIZE}${item.poster_path}`
     : 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=500&h=750&fit=crop&crop=center';
 
-  const inCart = isInCart(item.id);
+  const inCart = isInCart ? isInCart(item.id) : false;
 
   const handleCartAction = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -39,9 +40,9 @@ export function MovieCard({ item, type }: MovieCardProps) {
       selectedSeasons: type === 'tv' ? [1] : undefined,
     };
 
-    if (inCart) {
+    if (inCart && removeItem) {
       removeItem(item.id);
-    } else {
+    } else if (addItem) {
       addItem(cartItem);
       setShowAnimation(true);
     }
@@ -87,6 +88,7 @@ export function MovieCard({ item, type }: MovieCardProps) {
               ? 'bg-green-500 hover:bg-green-600 text-white'
               : 'bg-blue-500 hover:bg-blue-600 text-white'
           }`}
+          disabled={!addItem && !removeItem}
         >
           {inCart ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </button>
@@ -100,3 +102,5 @@ export function MovieCard({ item, type }: MovieCardProps) {
     </>
   );
 }
+
+export { MovieCard };
