@@ -4,16 +4,18 @@ import { ArrowLeft, Star, Calendar, Tv, Plus, X, Play, ChevronDown } from 'lucid
 import { tmdbService } from '../services/tmdb';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { PriceCard } from '../components/PriceCard';
+import { CastSection } from '../components/CastSection';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { useCart } from '../context/CartContext';
 import { IMAGE_BASE_URL, BACKDROP_SIZE } from '../config/api';
-import type { TVShowDetails, Video, CartItem, Season } from '../types/movie';
+import type { TVShowDetails, Video, CartItem, Season, CastMember } from '../types/movie';
 
 export function TVDetail() {
   const { id } = useParams<{ id: string }>();
   const [tvShow, setTVShow] = useState<TVShowDetails | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [cast, setCast] = useState<CastMember[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
@@ -29,6 +31,7 @@ export function TVDetail() {
   const isAnime = tvShow?.original_language === 'ja' || 
                  (tvShow?.genres && tvShow.genres.some(g => g.name.toLowerCase().includes('animat'))) ||
                  tvShow?.name?.toLowerCase().includes('anime');
+
   // Cargar temporadas seleccionadas si ya está en el carrito
   useEffect(() => {
     if (inCart) {
@@ -41,12 +44,14 @@ export function TVDetail() {
     const fetchTVData = async () => {
       try {
         setLoading(true);
-        const [tvData, videoData] = await Promise.all([
+        const [tvData, videoData, creditsData] = await Promise.all([
           tmdbService.getTVShowDetails(tvId),
-          tmdbService.getTVShowVideos(tvId)
+          tmdbService.getTVShowVideos(tvId),
+          tmdbService.getTVShowCredits(tvId)
         ]);
 
         setTVShow(tvData);
+        setCast(creditsData.cast || []);
         
         // Filter for trailers and teasers
         const trailers = videoData.results.filter(
@@ -96,33 +101,22 @@ export function TVDetail() {
   const isAddToCartEnabled = () => {
     if (!tvShow) return false;
     
-    // Si solo tiene una temporada (excluyendo especiales), habilitar automáticamente
     const validSeasons = tvShow.seasons.filter(season => season.season_number > 0);
-    if (validSeasons.length === 1) {
-      // Auto-seleccionar la única temporada si no hay ninguna seleccionada
-      if (selectedSeasons.length === 0) {
-        setSelectedSeasons([validSeasons[0].season_number]);
-      }
-      return true;
-    }
     
-    // Si tiene múltiples temporadas, requiere selección manual
-    return selectedSeasons.length > 0;
+    // Siempre habilitar el botón - si no hay temporadas seleccionadas, se seleccionará la primera automáticamente
+    return validSeasons.length > 0;
   };
 
   const handleCartAction = () => {
     if (!tvShow) return;
 
-    // Si no hay temporadas seleccionadas y hay múltiples temporadas, no permitir agregar
     const validSeasons = tvShow.seasons.filter(season => season.season_number > 0);
-    if (validSeasons.length > 1 && selectedSeasons.length === 0) {
-      alert('Por favor selecciona al menos una temporada antes de agregar al carrito.');
-      return;
-    }
-
-    // Si solo hay una temporada y no está seleccionada, seleccionarla automáticamente
-    if (validSeasons.length === 1 && selectedSeasons.length === 0) {
-      setSelectedSeasons([validSeasons[0].season_number]);
+    
+    // Si no hay temporadas seleccionadas, seleccionar la primera por defecto
+    let seasonsToAdd = selectedSeasons;
+    if (selectedSeasons.length === 0 && validSeasons.length > 0) {
+      seasonsToAdd = [1];
+      setSelectedSeasons([1]);
     }
 
     const cartItem: CartItem & { selectedSeasons?: number[] } = {
@@ -132,7 +126,9 @@ export function TVDetail() {
       type: 'tv',
       first_air_date: tvShow.first_air_date,
       vote_average: tvShow.vote_average,
-      selectedSeasons: selectedSeasons.length > 0 ? selectedSeasons : (validSeasons.length === 1 ? [validSeasons[0].season_number] : undefined),
+      selectedSeasons: seasonsToAdd,
+      original_language: tvShow.original_language,
+      genre_ids: tvShow.genres.map(g => g.id),
     };
 
     if (inCart) {
@@ -157,13 +153,14 @@ export function TVDetail() {
 
   // Auto-seleccionar la única temporada si solo hay una
   useEffect(() => {
-    if (tvShow && !inCart) {
+    if (tvShow && !inCart && selectedSeasons.length === 0) {
       const validSeasons = tvShow.seasons.filter(season => season.season_number > 0);
-      if (validSeasons.length === 1 && selectedSeasons.length === 0) {
-        setSelectedSeasons([validSeasons[0].season_number]);
+      if (validSeasons.length >= 1) {
+        // Siempre seleccionar la primera temporada por defecto
+        setSelectedSeasons([1]);
       }
     }
-  }, [tvShow, inCart, selectedSeasons.length]);
+  }, [tvShow, inCart]);
 
   if (loading) {
     return (
@@ -264,6 +261,9 @@ export function TVDetail() {
                 </div>
               )}
             </div>
+
+            {/* Cast Section */}
+            <CastSection cast={cast} title="Reparto Principal" />
 
             {/* Videos */}
             {videos.length > 0 && (
@@ -455,11 +455,6 @@ export function TVDetail() {
                     <X className="mr-2 h-5 w-5" />
                     Retirar del Carrito
                   </>
-                ) : !isAddToCartEnabled() && hasMultipleSeasons ? (
-                  <>
-                    <Plus className="mr-2 h-5 w-5" />
-                    Selecciona Temporadas
-                  </>
                 ) : (
                   <>
                     <Plus className="mr-2 h-5 w-5" />
@@ -468,11 +463,11 @@ export function TVDetail() {
                 )}
               </button>
 
-              {/* Mensaje de ayuda para selección de temporadas */}
-              {!isAddToCartEnabled() && hasMultipleSeasons && (
-                <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-700 text-center">
-                    ⚠️ Selecciona al menos una temporada para agregar al carrito
+              {/* Mensaje informativo sobre selección automática */}
+              {hasMultipleSeasons && selectedSeasons.length === 0 && !inCart && (
+                <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 text-center">
+                    ℹ️ Se agregará la primera temporada por defecto. Puedes seleccionar más temporadas arriba.
                   </p>
                 </div>
               )}
@@ -553,6 +548,18 @@ export function TVDetail() {
                   <p className="text-gray-700 font-medium ml-11">{tvShow.original_language.toUpperCase()}</p>
                 </div>
 
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-red-200 transition-colors">
+                  <div className="flex items-center mb-2">
+                    <div className="bg-red-100 p-2 rounded-lg mr-3 shadow-sm animate-pulse">
+                      <span className="text-sm">🗳️</span>
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Votos</h3>
+                  </div>
+                  <p className="text-gray-700 font-medium ml-11">
+                    {tvShow.vote_count.toLocaleString()} votos
+                  </p>
+                </div>
+
                 {tvShow.production_companies.length > 0 && (
                   <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-orange-200 transition-colors">
                     <div className="flex items-center mb-3">
@@ -566,6 +573,26 @@ export function TVDetail() {
                         <div key={company.id} className="bg-white rounded-lg p-2 border border-gray-200">
                           <p className="text-gray-700 text-sm font-medium">
                           {company.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {tvShow.production_countries.length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-teal-200 transition-colors">
+                    <div className="flex items-center mb-3">
+                      <div className="bg-teal-100 p-2 rounded-lg mr-3 shadow-sm animate-bounce">
+                        <span className="text-sm">🌍</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900">Países</h3>
+                    </div>
+                    <div className="space-y-2 ml-11">
+                      {tvShow.production_countries.map((country) => (
+                        <div key={country.iso_3166_1} className="bg-white rounded-lg p-2 border border-gray-200">
+                          <p className="text-gray-700 text-sm font-medium">
+                            {country.name}
                           </p>
                         </div>
                       ))}
