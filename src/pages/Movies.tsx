@@ -148,3 +148,5 @@ export function Movies() {
     </div>
   );
 }
+
+export { Movies };

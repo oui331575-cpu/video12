@@ -322,3 +322,5 @@ export function HeroCarousel({ items }: HeroCarouselProps) {
     </div>
   );
 }
+
+export { HeroCarousel };

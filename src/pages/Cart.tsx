@@ -8,12 +8,27 @@ import { sendOrderToWhatsApp } from '../utils/whatsapp';
 import { IMAGE_BASE_URL, POSTER_SIZE } from '../config/api';
 
 export function Cart() {
-  const { state, removeItem, clearCart, updatePaymentType, calculateItemPrice, calculateTotalPrice, calculateTotalByPaymentType } = useCart();
+  const cartContext = useCart();
+  const { 
+    state, 
+    removeItem, 
+    clearCart, 
+    updatePaymentType, 
+    calculateItemPrice, 
+    calculateTotalPrice, 
+    calculateTotalByPaymentType 
+  } = cartContext || {};
   const [showCheckoutModal, setShowCheckoutModal] = React.useState(false);
+
+  // Valores por defecto si el contexto no está disponible
+  const safeState = state || { items: [], total: 0 };
+  const safeCalculateItemPrice = calculateItemPrice || (() => 0);
+  const safeCalculateTotalPrice = calculateTotalPrice || (() => 0);
+  const safeCalculateTotalByPaymentType = calculateTotalByPaymentType || (() => ({ cash: 0, transfer: 0 }));
 
   const handleCheckout = (orderData: OrderData) => {
     // Calculate totals
-    const totalsByPaymentType = calculateTotalByPaymentType();
+    const totalsByPaymentType = safeCalculateTotalByPaymentType();
     const subtotal = totalsByPaymentType.cash + totalsByPaymentType.transfer;
     const transferFee = 0;
     const total = subtotal + orderData.deliveryCost;
@@ -21,7 +36,7 @@ export function Cart() {
     // Complete the order data with cart information
     const completeOrderData: OrderData = {
       ...orderData,
-      items: state.items,
+      items: safeState.items,
       subtotal,
       transferFee,
       total,
@@ -54,13 +69,13 @@ export function Cart() {
            item.title?.toLowerCase().includes('anime');
   };
 
-  const totalPrice = calculateTotalPrice();
-  const totalsByPaymentType = calculateTotalByPaymentType();
-  const movieCount = state.items.filter(item => item.type === 'movie').length;
-  const seriesCount = state.items.filter(item => item.type === 'tv').length;
-  const animeCount = state.items.filter(item => isAnime(item)).length;
+  const totalPrice = safeCalculateTotalPrice();
+  const totalsByPaymentType = safeCalculateTotalByPaymentType();
+  const movieCount = safeState.items.filter(item => item.type === 'movie').length;
+  const seriesCount = safeState.items.filter(item => item.type === 'tv').length;
+  const animeCount = safeState.items.filter(item => isAnime(item)).length;
 
-  if (state.items.length === 0) {
+  if (safeState.items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-md w-full">
@@ -124,11 +139,12 @@ export function Cart() {
           <div className="p-6 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 text-center sm:text-left">
-                Elementos ({state.total})
+                Elementos ({safeState.total})
               </h2>
               <button
-                onClick={clearCart}
+                onClick={() => clearCart && clearCart()}
                 className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors text-center"
+                disabled={!clearCart}
               >
                 Vaciar carrito
               </button>
@@ -136,7 +152,7 @@ export function Cart() {
           </div>
 
           <div className="divide-y divide-gray-200">
-            {state.items.map((item) => (
+            {safeState.items.map((item) => (
               <div key={`${item.type}-${item.id}`} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-4">
                   {/* Poster */}
@@ -156,23 +172,25 @@ export function Cart() {
                         <span className="text-sm font-medium text-gray-700 text-center sm:text-left">Tipo de pago:</span>
                         <div className="flex justify-center sm:justify-start space-x-2">
                           <button
-                            onClick={() => updatePaymentType(item.id, 'cash')}
+                            onClick={() => updatePaymentType && updatePaymentType(item.id, 'cash')}
                             className={`px-3 py-2 rounded-full text-xs font-medium transition-colors ${
                               item.paymentType === 'cash'
                                 ? 'bg-green-500 text-white'
                                 : 'bg-gray-200 text-gray-600 hover:bg-green-100'
                             }`}
+                            disabled={!updatePaymentType}
                           >
                             <DollarSign className="h-3 w-3 inline mr-1" />
                             Efectivo
                           </button>
                           <button
-                            onClick={() => updatePaymentType(item.id, 'transfer')}
+                            onClick={() => updatePaymentType && updatePaymentType(item.id, 'transfer')}
                             className={`px-3 py-2 rounded-full text-xs font-medium transition-colors ${
                               item.paymentType === 'transfer'
                                 ? 'bg-orange-500 text-white'
                                 : 'bg-gray-200 text-gray-600 hover:bg-orange-100'
                             }`}
+                            disabled={!updatePaymentType}
                           >
                             <CreditCard className="h-3 w-3 inline mr-1" />
                             Transferencia (+10%)
@@ -227,7 +245,7 @@ export function Cart() {
                           {item.paymentType === 'cash' ? 'Efectivo' : 'Transferencia'}
                         </div>
                         <div className="text-base sm:text-lg font-bold text-green-800">
-                          ${calculateItemPrice(item).toLocaleString()} CUP
+                          ${safeCalculateItemPrice(item).toLocaleString()} CUP
                         </div>
                         {item.paymentType === 'transfer' && (
                           <div className="text-xs text-orange-600 mt-1">
@@ -250,9 +268,10 @@ export function Cart() {
                       </Link>
                     )}
                     <button
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => removeItem && removeItem(item.id)}
                       className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors touch-manipulation"
                       title="Eliminar del carrito"
+                      disabled={!removeItem}
                     >
                       <Trash2 className="h-5 w-5" />
                     </button>
@@ -275,7 +294,7 @@ export function Cart() {
               </h3>
               <div className="text-center sm:text-right">
                 <div className="text-2xl sm:text-3xl font-bold">${totalPrice.toLocaleString()} CUP</div>
-                <div className="text-sm opacity-90">{state.total} elementos</div>
+                <div className="text-sm opacity-90">{safeState.total} elementos</div>
               </div>
             </div>
           </div>
@@ -299,7 +318,7 @@ export function Cart() {
                       ${totalsByPaymentType.cash.toLocaleString()} CUP
                     </div>
                     <div className="text-sm text-green-600">
-                      {state.items.filter(item => item.paymentType === 'cash').length} elementos
+                      {safeState.items.filter(item => item.paymentType === 'cash').length} elementos
                     </div>
                   </div>
                 </div>
@@ -314,7 +333,7 @@ export function Cart() {
                       ${totalsByPaymentType.transfer.toLocaleString()} CUP
                     </div>
                     <div className="text-sm text-orange-600">
-                      {state.items.filter(item => item.paymentType === 'transfer').length} elementos (+10%)
+                      {safeState.items.filter(item => item.paymentType === 'transfer').length} elementos (+10%)
                     </div>
                   </div>
                 </div>
@@ -336,8 +355,8 @@ export function Cart() {
               </h4>
               
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {state.items.map((item) => {
-                  const itemPrice = calculateItemPrice(item);
+                {safeState.items.map((item) => {
+                  const itemPrice = safeCalculateItemPrice(item);
                   const basePrice = item.type === 'movie' ? 80 : (item.selectedSeasons?.length || 1) * 300;
                   return (
                     <div key={`${item.type}-${item.id}`} className="bg-white rounded-lg p-3 border border-gray-200">
@@ -439,8 +458,8 @@ export function Cart() {
                   <div className="flex items-center">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
                     <span className="font-medium">
-                      {state.items.length > 0 
-                        ? (state.items.reduce((acc, item) => acc + item.vote_average, 0) / state.items.length).toFixed(1)
+                      {safeState.items.length > 0 
+                        ? (safeState.items.reduce((acc, item) => acc + item.vote_average, 0) / safeState.items.length).toFixed(1)
                         : '0.0'
                       }
                     </span>
@@ -449,8 +468,8 @@ export function Cart() {
                 <div className="flex flex-col sm:flex-row justify-between items-center space-y-1 sm:space-y-0">
                   <span className="text-gray-600">Contenido más reciente:</span>
                   <span className="font-medium">
-                    {state.items.length > 0 
-                      ? Math.max(...state.items.map(item => {
+                    {safeState.items.length > 0 
+                      ? Math.max(...safeState.items.map(item => {
                           const date = item.release_date || item.first_air_date;
                           return date ? new Date(date).getFullYear() : 0;
                         }))
@@ -484,10 +503,10 @@ export function Cart() {
           isOpen={showCheckoutModal}
           onClose={() => setShowCheckoutModal(false)}
           onCheckout={handleCheckout}
-          items={state.items.map(item => ({
+          items={safeState.items.map(item => ({
             id: item.id,
             title: item.title,
-            price: calculateItemPrice(item),
+            price: safeCalculateItemPrice(item),
             quantity: 1
           }))}
           total={totalPrice}
@@ -496,3 +515,5 @@ export function Cart() {
     </div>
   );
 }
+
+export { Cart };

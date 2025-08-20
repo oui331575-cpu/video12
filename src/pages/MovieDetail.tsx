@@ -20,10 +20,11 @@ export function MovieDetail() {
   const [showVideo, setShowVideo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { addItem, removeItem, isInCart } = useCart();
+  const cartContext = useCart();
+  const { addItem, removeItem, isInCart } = cartContext || {};
 
   const movieId = parseInt(id || '0');
-  const inCart = isInCart(movieId);
+  const inCart = isInCart ? isInCart(movieId) : false;
 
   // Detectar si es anime
   const isAnime = movie?.original_language === 'ja' || 
@@ -78,9 +79,9 @@ export function MovieDetail() {
       genre_ids: movie.genres.map(g => g.id),
     };
 
-    if (inCart) {
+    if (inCart && removeItem) {
       removeItem(movie.id);
-    } else {
+    } else if (addItem) {
       addItem(cartItem);
     }
   };
@@ -268,7 +269,11 @@ export function MovieDetail() {
               <div className="p-6">
               <button
                 onClick={handleCartAction}
+                disabled={!addItem && !removeItem}
                 className={`w-full mb-6 px-6 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center transform hover:scale-105 hover:shadow-lg ${
+                  !addItem && !removeItem
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 
                   inCart
                     ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
                     : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
@@ -405,3 +410,5 @@ export function MovieDetail() {
     </div>
   );
 }
+
+export { MovieDetail };

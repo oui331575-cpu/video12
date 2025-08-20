@@ -214,3 +214,5 @@ export function SearchPage() {
     </div>
   );
 }
+
+export { SearchPage };

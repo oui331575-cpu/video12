@@ -144,3 +144,5 @@ export function TVShows() {
     </div>
   );
 }
+
+export { TVShows };

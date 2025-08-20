@@ -80,3 +80,5 @@ export function CastSection({ cast, title = "Reparto Principal" }: CastSectionPr
     </div>
   );
 }
+
+export { CastSection };
