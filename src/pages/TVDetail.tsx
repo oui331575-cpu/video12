@@ -22,11 +22,10 @@ export function TVDetail() {
   const [showSeasonSelector, setShowSeasonSelector] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const cartContext = useCart();
-  const { addItem, removeItem, updateSeasons, isInCart, getItemSeasons } = cartContext || {};
+  const { addItem, removeItem, updateSeasons, isInCart, getItemSeasons } = useCart();
 
   const tvId = parseInt(id || '0');
-  const inCart = isInCart ? isInCart(tvId) : false;
+  const inCart = isInCart(tvId);
 
   // Detectar si es anime
   const isAnime = tvShow?.original_language === 'ja' || 
@@ -36,10 +35,10 @@ export function TVDetail() {
   // Cargar temporadas seleccionadas si ya está en el carrito
   useEffect(() => {
     if (inCart) {
-      const savedSeasons = getItemSeasons ? getItemSeasons(tvId) : [];
+      const savedSeasons = getItemSeasons(tvId);
       setSelectedSeasons(savedSeasons);
     }
-  }, [inCart, tvId]);
+  }, [inCart, tvId, getItemSeasons]);
 
   useEffect(() => {
     const fetchTVData = async () => {
@@ -132,22 +131,22 @@ export function TVDetail() {
       genre_ids: tvShow.genres.map(g => g.id),
     };
 
-    if (inCart && removeItem) {
+    if (inCart) {
       removeItem(tvShow.id);
-    } else if (addItem) {
+    } else {
       addItem(cartItem);
     }
   };
 
   const handleSeasonsUpdate = () => {
-    if (inCart && tvShow && updateSeasons) {
+    if (inCart && tvShow) {
       updateSeasons(tvShow.id, selectedSeasons);
     }
   };
 
   // Actualizar temporadas cuando cambie la selección y esté en el carrito
   useEffect(() => {
-    if (inCart && updateSeasons) {
+    if (inCart) {
       handleSeasonsUpdate();
     }
   }, [selectedSeasons, inCart]);
@@ -442,9 +441,9 @@ export function TVDetail() {
 
               <button
                 onClick={handleCartAction}
-                disabled={!isAddToCartEnabled() || (!addItem && !removeItem)}
+                disabled={!isAddToCartEnabled()}
                 className={`w-full mb-6 px-6 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center transform ${
-                  !isAddToCartEnabled() || (!addItem && !removeItem)
+                  !isAddToCartEnabled()
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : inCart
                       ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:scale-105 hover:shadow-lg'
@@ -609,5 +608,3 @@ export function TVDetail() {
     </div>
   );
 }
-
-export { TVDetail };

@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { X, User, MapPin, Phone, Copy, Check, MessageCircle, Calculator, DollarSign, CreditCard } from 'lucide-react';
-import { useAdmin, AdminContext } from '../context/AdminContext';
+import { AdminContext } from '../context/AdminContext';
+
+// Base delivery zones with default option
+const BASE_DELIVERY_ZONES = {
+  'Por favor seleccionar su Barrio/Zona': 0,
+};
 
 export interface CustomerInfo {
   fullName: string;
@@ -29,33 +34,6 @@ interface CheckoutModalProps {
   total: number;
 }
 
-// Zonas de entrega con costos
-const DELIVERY_ZONES = {
-  'Por favor seleccionar su Barrio/Zona': 0,
-  'Santiago de Cuba > Santiago de Cuba > Nuevo Vista Alegre': 100,
-  'Santiago de Cuba > Santiago de Cuba > Vista Alegre': 300,
-  'Santiago de Cuba > Santiago de Cuba > Reparto Sueño': 250,
-  'Santiago de Cuba > Santiago de Cuba > San Pedrito': 150,
-  'Santiago de Cuba > Santiago de Cuba > Altamira': 300,
-  'Santiago de Cuba > Santiago de Cuba > Micro 7, 8 , 9': 150,
-  'Santiago de Cuba > Santiago de Cuba > Alameda': 150,
-  'Santiago de Cuba > Santiago de Cuba > El Caney': 800,
-  'Santiago de Cuba > Santiago de Cuba > Quintero': 200,
-  'Santiago de Cuba > Santiago de Cuba > Marimon': 100,
-  'Santiago de Cuba > Santiago de Cuba > Los cangrejitos': 150,
-  'Santiago de Cuba > Santiago de Cuba > Trocha': 200,
-  'Santiago de Cuba > Santiago de Cuba > Versalles': 800,
-  'Santiago de Cuba > Santiago de Cuba > Reparto Portuondo': 600,
-  'Santiago de Cuba > Santiago de Cuba > 30 de Noviembre': 600,
-  'Santiago de Cuba > Santiago de Cuba > Rajayoga': 800,
-  'Santiago de Cuba > Santiago de Cuba > Antonio Maceo': 600,
-  'Santiago de Cuba > Santiago de Cuba > Los Pinos': 200,
-  'Santiago de Cuba > Santiago de Cuba > Distrito José Martí': 100,
-  'Santiago de Cuba > Santiago de Cuba > Cobre': 800,
-  'Santiago de Cuba > Santiago de Cuba > El Parque Céspedes': 200,
-  'Santiago de Cuba > Santiago de Cuba > Carretera del Morro': 300,
-
-};
 
 export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: CheckoutModalProps) {
   const adminContext = React.useContext(AdminContext);
@@ -71,19 +49,21 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
   const [generatedOrder, setGeneratedOrder] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Get delivery zones from admin context if available
+  // Get delivery zones from admin context with real-time updates
   const adminZones = adminContext?.state?.deliveryZones || [];
   const adminZonesMap = adminZones.reduce((acc, zone) => {
     acc[zone.name] = zone.cost;
     return acc;
   }, {} as { [key: string]: number });
   
-  // Combine admin zones with default zones
-  const allZones = { ...DELIVERY_ZONES, ...adminZonesMap };
+  // Combine admin zones with base zones - real-time sync
+  const allZones = { ...BASE_DELIVERY_ZONES, ...adminZonesMap };
   const deliveryCost = allZones[deliveryZone as keyof typeof allZones] || 0;
   const finalTotal = total + deliveryCost;
 
-  // Validar si todos los campos requeridos están completos incluyendo la zona de entrega
+  // Get current transfer fee percentage with real-time updates
+  const transferFeePercentage = adminContext?.state?.prices?.transferFeePercentage || 10;
+
   const isFormValid = customerInfo.fullName.trim() !== '' && 
                      customerInfo.phone.trim() !== '' && 
                      customerInfo.address.trim() !== '' &&
@@ -107,14 +87,18 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     const cashItems = items.filter(item => item.paymentType === 'cash');
     const transferItems = items.filter(item => item.paymentType === 'transfer');
     
+    // Get current prices with real-time updates
+    const moviePrice = adminContext?.state?.prices?.moviePrice || 80;
+    const seriesPrice = adminContext?.state?.prices?.seriesPrice || 300;
+    
     const cashTotal = cashItems.reduce((sum, item) => {
-      const basePrice = item.type === 'movie' ? 80 : (item.selectedSeasons?.length || 1) * 300;
+      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
       return sum + basePrice;
     }, 0);
     
     const transferTotal = transferItems.reduce((sum, item) => {
-      const basePrice = item.type === 'movie' ? 80 : (item.selectedSeasons?.length || 1) * 300;
-      return sum + Math.round(basePrice * 1.1);
+      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
+      return sum + Math.round(basePrice * (1 + transferFeePercentage / 100));
     }, 0);
     
     return { cashTotal, transferTotal };
@@ -124,20 +108,24 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     const orderId = generateOrderId();
     const { cashTotal, transferTotal } = calculateTotals();
     const transferFee = transferTotal - items.filter(item => item.paymentType === 'transfer').reduce((sum, item) => {
-      const basePrice = item.type === 'movie' ? 80 : (item.selectedSeasons?.length || 1) * 300;
+      const moviePrice = adminContext?.state?.prices?.moviePrice || 80;
+      const seriesPrice = adminContext?.state?.prices?.seriesPrice || 300;
+      const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
       return sum + basePrice;
     }, 0);
 
-    // Formatear lista de productos
+    // Format product list with real-time pricing
     const itemsList = items
       .map(item => {
         const seasonInfo = item.selectedSeasons && item.selectedSeasons.length > 0 
           ? `\n  📺 Temporadas: ${item.selectedSeasons.sort((a, b) => a - b).join(', ')}` 
           : '';
         const itemType = item.type === 'movie' ? 'Película' : 'Serie';
-        const basePrice = item.type === 'movie' ? 80 : (item.selectedSeasons?.length || 1) * 300;
-        const finalPrice = item.paymentType === 'transfer' ? Math.round(basePrice * 1.1) : basePrice;
-        const paymentTypeText = item.paymentType === 'transfer' ? 'Transferencia (+10%)' : 'Efectivo';
+        const moviePrice = adminContext?.state?.prices?.moviePrice || 80;
+        const seriesPrice = adminContext?.state?.prices?.seriesPrice || 300;
+        const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
+        const finalPrice = item.paymentType === 'transfer' ? Math.round(basePrice * (1 + transferFeePercentage / 100)) : basePrice;
+        const paymentTypeText = item.paymentType === 'transfer' ? `Transferencia (+${transferFeePercentage}%)` : 'Efectivo';
         const emoji = item.type === 'movie' ? '🎬' : '📺';
         return `${emoji} *${item.title}*${seasonInfo}\n  📋 Tipo: ${itemType}\n  💳 Pago: ${paymentTypeText}\n  💰 Precio: $${finalPrice.toLocaleString()} CUP`;
       })
@@ -164,7 +152,7 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     orderText += `• *Subtotal Contenido: $${total.toLocaleString()} CUP*\n`;
     
     if (transferFee > 0) {
-      orderText += `• Recargo transferencia (10%): +$${transferFee.toLocaleString()} CUP\n`;
+      orderText += `• Recargo transferencia (${transferFeePercentage}%): +$${transferFee.toLocaleString()} CUP\n`;
     }
     
     orderText += `🚚 Entrega (${deliveryZone.split(' > ')[2]}): +$${deliveryCost.toLocaleString()} CUP\n`;
@@ -215,7 +203,9 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
       const { orderId } = generateOrderText();
       const { cashTotal, transferTotal } = calculateTotals();
       const transferFee = transferTotal - items.filter(item => item.paymentType === 'transfer').reduce((sum, item) => {
-        const basePrice = item.type === 'movie' ? 80 : (item.selectedSeasons?.length || 1) * 300;
+        const moviePrice = adminContext?.state?.prices?.moviePrice || 80;
+        const seriesPrice = adminContext?.state?.prices?.seriesPrice || 300;
+        const basePrice = item.type === 'movie' ? moviePrice : (item.selectedSeasons?.length || 1) * seriesPrice;
         return sum + basePrice;
       }, 0);
 
@@ -551,6 +541,3 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     </div>
   );
 }
-
-export { CheckoutModal };
-export type { CustomerInfo, OrderData };

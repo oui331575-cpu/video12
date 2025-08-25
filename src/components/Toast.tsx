@@ -68,5 +68,3 @@ export function Toast({ message, type, isVisible, onClose }: ToastProps) {
     </div>
   );
 }
-
-export { Toast };

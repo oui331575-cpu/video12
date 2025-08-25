@@ -45,5 +45,3 @@ export function VideoPlayer({ videoKey, title }: VideoPlayerProps) {
     </div>
   );
 }
-
-export { VideoPlayer };

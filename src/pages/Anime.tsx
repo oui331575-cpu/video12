@@ -147,5 +147,3 @@ export function Anime() {
     </div>
   );
 }
-
-export { Anime };

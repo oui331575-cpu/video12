@@ -7,8 +7,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-  const cartContext = useCart();
-  const state = cartContext?.state || { total: 0 };
+  const { state } = useCart();
 
   // Real-time search effect
   React.useEffect(() => {
@@ -105,5 +104,3 @@ export function Header() {
     </header>
   );
 }
-
-export { Header };

@@ -112,5 +112,3 @@ export function CartAnimation({ show, onComplete }: CartAnimationProps) {
     </div>
   );
 }
-
-export { CartAnimation };
