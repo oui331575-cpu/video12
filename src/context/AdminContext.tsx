@@ -93,43 +93,32 @@ interface AdminContextType {
 const initialState: AdminState = {
   isAuthenticated: false,
   prices: {
-    moviePrice: 100,
-    seriesPrice: 500,
-    transferFeePercentage: 20,
-    novelPricePerChapter: 10,
+    moviePrice: 801,
+    seriesPrice: 300,
+    transferFeePercentage: 10,
+    novelPricePerChapter: 5,
   },
   deliveryZones: [
   {
-    "name": "santiago de cuba",
-    "cost": 100,
+    "name": "123",
+    "cost": 1,
     "active": true,
-    "id": 1756218439593,
-    "createdAt": "2025-08-26T14:27:19.593Z",
-    "updatedAt": "2025-08-26T14:27:19.593Z"
+    "id": 1756230281051,
+    "createdAt": "2025-08-26T17:44:41.051Z",
+    "updatedAt": "2025-08-26T17:44:41.051Z"
   }
 ],
   novels: [
   {
-    "titulo": "123",
-    "genero": "123",
-    "capitulos": 12,
+    "titulo": "1",
+    "genero": "1",
+    "capitulos": 1,
     "año": 2025,
     "descripcion": "",
     "active": true,
-    "id": 1756217995553,
-    "createdAt": "2025-08-26T14:19:55.553Z",
-    "updatedAt": "2025-08-26T14:19:55.553Z"
-  },
-  {
-    "titulo": "pepe",
-    "genero": "drama",
-    "capitulos": 10,
-    "año": 2025,
-    "descripcion": "",
-    "active": true,
-    "id": 1756218583890,
-    "createdAt": "2025-08-26T14:29:43.890Z",
-    "updatedAt": "2025-08-26T14:29:43.890Z"
+    "id": 1756230290435,
+    "createdAt": "2025-08-26T17:44:50.435Z",
+    "updatedAt": "2025-08-26T17:44:50.435Z"
   }
 ],
   notifications: [],
