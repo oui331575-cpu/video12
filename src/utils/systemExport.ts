@@ -1053,3 +1053,4 @@ export function getPostcssConfig(): string { return '// PostCSS configuration'; 
 export function getTsConfigApp(): string { return '// TypeScript app configuration'; }
 export function getTsConfigNode(): string { return '// TypeScript node configuration'; }
 `;
+}
