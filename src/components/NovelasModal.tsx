@@ -2,7 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, MessageCircle, Phone, BookOpen, Info, Check, DollarSign, CreditCard, Calculator, Search, Filter, SortAsc, SortDesc, Smartphone } from 'lucide-react';
 
 // CATÁLOGO DE NOVELAS EMBEBIDO - Generado automáticamente
-const EMBEDDED_NOVELS = [];
+const EMBEDDED_NOVELS = [
+  {
+    "id": 1,
+    "titulo": "La Casa de Papel",
+    "genero": "Drama",
+    "capitulos": 48,
+    "año": 2017,
+    "descripcion": "Una serie sobre un atraco perfecto",
+    "createdAt": "2025-01-09T20:47:45.529Z",
+    "updatedAt": "2025-01-09T20:47:45.529Z"
+  },
+  {
+    "id": 2,
+    "titulo": "Élite",
+    "genero": "Drama",
+    "capitulos": 32,
+    "año": 2018,
+    "descripcion": "Drama juvenil en un colegio privado",
+    "createdAt": "2025-01-09T20:47:45.529Z",
+    "updatedAt": "2025-01-09T20:47:45.529Z"
+  }
+];
 
 // PRECIOS EMBEBIDOS
 const EMBEDDED_PRICES = {
@@ -36,41 +57,44 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
   const [selectedYear, setSelectedYear] = useState('');
   const [sortBy, setSortBy] = useState<'titulo' | 'año' | 'capitulos'>('titulo');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentNovels, setCurrentNovels] = useState(EMBEDDED_NOVELS);
+  const [currentPrices, setCurrentPrices] = useState(EMBEDDED_PRICES);
 
-  // Get novels and prices from embedded configuration
-  const adminNovels = EMBEDDED_NOVELS;
-  const novelPricePerChapter = EMBEDDED_PRICES.novelPricePerChapter;
-  const transferFeePercentage = EMBEDDED_PRICES.transferFeePercentage;
-  
-  // Base novels list
-  const defaultNovelas: Novela[] = [];
+  // Listen for updates from admin panel
+  useEffect(() => {
+    const handleNovelsUpdate = (event: CustomEvent) => {
+      setCurrentNovels(event.detail);
+    };
 
-  // Combine admin novels with default novels
-  const allNovelas = [...defaultNovelas, ...adminNovels.map(novel => ({
-    id: novel.id,
-    titulo: novel.titulo,
-    genero: novel.genero,
-    capitulos: novel.capitulos,
-    año: novel.año,
-    descripcion: novel.descripcion
-  }))];
+    const handlePricesUpdate = (event: CustomEvent) => {
+      setCurrentPrices(event.detail);
+    };
+
+    window.addEventListener('admin_novels_updated', handleNovelsUpdate as EventListener);
+    window.addEventListener('admin_prices_updated', handlePricesUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('admin_novels_updated', handleNovelsUpdate as EventListener);
+      window.removeEventListener('admin_prices_updated', handlePricesUpdate as EventListener);
+    };
+  }, []);
 
   const phoneNumber = '+5354690878';
 
   // Get unique genres
-  const uniqueGenres = [...new Set(allNovelas.map(novela => novela.genero))].sort();
+  const uniqueGenres = [...new Set(currentNovels.map(novela => novela.genero))].sort();
   
   // Get unique years
-  const uniqueYears = [...new Set(allNovelas.map(novela => novela.año))].sort((a, b) => b - a);
+  const uniqueYears = [...new Set(currentNovels.map(novela => novela.año))].sort((a, b) => b - a);
 
   // Initialize novels with default payment type
   useEffect(() => {
-    const novelasWithDefaultPayment = allNovelas.map(novela => ({
+    const novelasWithDefaultPayment = currentNovels.map(novela => ({
       ...novela,
       paymentType: 'cash' as const
     }));
     setNovelasWithPayment(novelasWithDefaultPayment);
-  }, []);
+  }, [currentNovels]);
 
   // Filter novels function
   const getFilteredNovelas = () => {
@@ -126,7 +150,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
   };
 
   const selectAllNovelas = () => {
-    setSelectedNovelas(allNovelas.map(n => n.id));
+    setSelectedNovelas(currentNovels.map(n => n.id));
   };
 
   const clearAllNovelas = () => {
@@ -141,16 +165,16 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
     setSortOrder('asc');
   };
 
-  // Calculate totals by payment type with embedded pricing
+  // Calculate totals by payment type with current pricing
   const calculateTotals = () => {
     const selectedNovelasData = novelasWithPayment.filter(n => selectedNovelas.includes(n.id));
     
     const cashNovelas = selectedNovelasData.filter(n => n.paymentType === 'cash');
     const transferNovelas = selectedNovelasData.filter(n => n.paymentType === 'transfer');
     
-    const cashTotal = cashNovelas.reduce((sum, n) => sum + (n.capitulos * novelPricePerChapter), 0);
-    const transferBaseTotal = transferNovelas.reduce((sum, n) => sum + (n.capitulos * novelPricePerChapter), 0);
-    const transferFee = Math.round(transferBaseTotal * (transferFeePercentage / 100));
+    const cashTotal = cashNovelas.reduce((sum, n) => sum + (n.capitulos * currentPrices.novelPricePerChapter), 0);
+    const transferBaseTotal = transferNovelas.reduce((sum, n) => sum + (n.capitulos * currentPrices.novelPricePerChapter), 0);
+    const transferFee = Math.round(transferBaseTotal * (currentPrices.transferFeePercentage / 100));
     const transferTotal = transferBaseTotal + transferFee;
     
     const grandTotal = cashTotal + transferTotal;
@@ -172,20 +196,20 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
   const generateNovelListText = () => {
     let listText = "📚 CATÁLOGO DE NOVELAS DISPONIBLES\n";
     listText += "TV a la Carta - Novelas Completas\n\n";
-    listText += `💰 Precio: $${novelPricePerChapter} CUP por capítulo\n`;
-    listText += `💳 Recargo transferencia: ${transferFeePercentage}%\n`;
+    listText += `💰 Precio: $${currentPrices.novelPricePerChapter} CUP por capítulo\n`;
+    listText += `💳 Recargo transferencia: ${currentPrices.transferFeePercentage}%\n`;
     listText += "📱 Contacto: +5354690878\n\n";
     listText += "═══════════════════════════════════\n\n";
     
-    if (allNovelas.length === 0) {
+    if (currentNovels.length === 0) {
       listText += "📋 No hay novelas disponibles en este momento.\n";
       listText += "Contacta con el administrador para más información.\n\n";
     } else {
       listText += "💵 PRECIOS EN EFECTIVO:\n";
       listText += "═══════════════════════════════════\n\n";
       
-      allNovelas.forEach((novela, index) => {
-        const baseCost = novela.capitulos * novelPricePerChapter;
+      currentNovels.forEach((novela, index) => {
+        const baseCost = novela.capitulos * currentPrices.novelPricePerChapter;
         listText += `${index + 1}. ${novela.titulo}\n`;
         listText += `   📺 Género: ${novela.genero}\n`;
         listText += `   📊 Capítulos: ${novela.capitulos}\n`;
@@ -193,44 +217,44 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
         listText += `   💰 Costo en efectivo: ${baseCost.toLocaleString()} CUP\n\n`;
       });
       
-      listText += `\n🏦 PRECIOS CON TRANSFERENCIA BANCARIA (+${transferFeePercentage}%):\n`;
+      listText += `\n🏦 PRECIOS CON TRANSFERENCIA BANCARIA (+${currentPrices.transferFeePercentage}%):\n`;
       listText += "═══════════════════════════════════\n\n";
       
-      allNovelas.forEach((novela, index) => {
-        const baseCost = novela.capitulos * novelPricePerChapter;
-        const transferCost = Math.round(baseCost * (1 + transferFeePercentage / 100));
+      currentNovels.forEach((novela, index) => {
+        const baseCost = novela.capitulos * currentPrices.novelPricePerChapter;
+        const transferCost = Math.round(baseCost * (1 + currentPrices.transferFeePercentage / 100));
         const recargo = transferCost - baseCost;
         listText += `${index + 1}. ${novela.titulo}\n`;
         listText += `   📺 Género: ${novela.genero}\n`;
         listText += `   📊 Capítulos: ${novela.capitulos}\n`;
         listText += `   📅 Año: ${novela.año}\n`;
         listText += `   💰 Costo base: ${baseCost.toLocaleString()} CUP\n`;
-        listText += `   💳 Recargo (${transferFeePercentage}%): +${recargo.toLocaleString()} CUP\n`;
+        listText += `   💳 Recargo (${currentPrices.transferFeePercentage}%): +${recargo.toLocaleString()} CUP\n`;
         listText += `   💰 Costo con transferencia: ${transferCost.toLocaleString()} CUP\n\n`;
       });
       
       listText += "\n📊 RESUMEN DE COSTOS:\n";
       listText += "═══════════════════════════════════\n\n";
       
-      const totalCapitulos = allNovelas.reduce((sum, novela) => sum + novela.capitulos, 0);
-      const totalEfectivo = allNovelas.reduce((sum, novela) => sum + (novela.capitulos * novelPricePerChapter), 0);
-      const totalTransferencia = allNovelas.reduce((sum, novela) => sum + Math.round((novela.capitulos * novelPricePerChapter) * (1 + transferFeePercentage / 100)), 0);
+      const totalCapitulos = currentNovels.reduce((sum, novela) => sum + novela.capitulos, 0);
+      const totalEfectivo = currentNovels.reduce((sum, novela) => sum + (novela.capitulos * currentPrices.novelPricePerChapter), 0);
+      const totalTransferencia = currentNovels.reduce((sum, novela) => sum + Math.round((novela.capitulos * currentPrices.novelPricePerChapter) * (1 + currentPrices.transferFeePercentage / 100)), 0);
       const totalRecargo = totalTransferencia - totalEfectivo;
       
-      listText += `📊 Total de novelas: ${allNovelas.length}\n`;
+      listText += `📊 Total de novelas: ${currentNovels.length}\n`;
       listText += `📊 Total de capítulos: ${totalCapitulos.toLocaleString()}\n\n`;
       listText += `💵 CATÁLOGO COMPLETO EN EFECTIVO:\n`;
       listText += `   💰 Costo total: ${totalEfectivo.toLocaleString()} CUP\n\n`;
       listText += `🏦 CATÁLOGO COMPLETO CON TRANSFERENCIA:\n`;
       listText += `   💰 Costo base: ${totalEfectivo.toLocaleString()} CUP\n`;
-      listText += `   💳 Recargo total (${transferFeePercentage}%): +${totalRecargo.toLocaleString()} CUP\n`;
+      listText += `   💳 Recargo total (${currentPrices.transferFeePercentage}%): +${totalRecargo.toLocaleString()} CUP\n`;
       listText += `   💰 Costo total con transferencia: ${totalTransferencia.toLocaleString()} CUP\n\n`;
     }
     
     listText += "═══════════════════════════════════\n";
     listText += "💡 INFORMACIÓN IMPORTANTE:\n";
     listText += "• Los precios en efectivo no tienen recargo adicional\n";
-    listText += `• Las transferencias bancarias tienen un ${transferFeePercentage}% de recargo\n`;
+    listText += `• Las transferencias bancarias tienen un ${currentPrices.transferFeePercentage}% de recargo\n`;
     listText += "• Puedes seleccionar novelas individuales o el catálogo completo\n";
     listText += "• Todos los precios están en pesos cubanos (CUP)\n\n";
     listText += "📞 Para encargar, contacta al +5354690878\n";
@@ -272,7 +296,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
         message += `   📺 Género: ${novela.genero}\n`;
         message += `   📊 Capítulos: ${novela.capitulos}\n`;
         message += `   📅 Año: ${novela.año}\n`;
-        message += `   💰 Costo: $${(novela.capitulos * novelPricePerChapter).toLocaleString()} CUP\n\n`;
+        message += `   💰 Costo: $${(novela.capitulos * currentPrices.novelPricePerChapter).toLocaleString()} CUP\n\n`;
       });
       message += `💰 Subtotal Efectivo: $${cashTotal.toLocaleString()} CUP\n`;
       message += `📊 Total capítulos: ${cashNovelas.reduce((sum, n) => sum + n.capitulos, 0)}\n\n`;
@@ -280,22 +304,22 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
     
     // Transfer novels
     if (transferNovelas.length > 0) {
-      message += `🏦 PAGO POR TRANSFERENCIA BANCARIA (+${transferFeePercentage}%):\n`;
+      message += `🏦 PAGO POR TRANSFERENCIA BANCARIA (+${currentPrices.transferFeePercentage}%):\n`;
       message += "═══════════════════════════════════\n";
       transferNovelas.forEach((novela, index) => {
-        const baseCost = novela.capitulos * novelPricePerChapter;
-        const fee = Math.round(baseCost * (transferFeePercentage / 100));
+        const baseCost = novela.capitulos * currentPrices.novelPricePerChapter;
+        const fee = Math.round(baseCost * (currentPrices.transferFeePercentage / 100));
         const totalCost = baseCost + fee;
         message += `${index + 1}. ${novela.titulo}\n`;
         message += `   📺 Género: ${novela.genero}\n`;
         message += `   📊 Capítulos: ${novela.capitulos}\n`;
         message += `   📅 Año: ${novela.año}\n`;
         message += `   💰 Costo base: $${baseCost.toLocaleString()} CUP\n`;
-        message += `   💳 Recargo (${transferFeePercentage}%): +$${fee.toLocaleString()} CUP\n`;
+        message += `   💳 Recargo (${currentPrices.transferFeePercentage}%): +$${fee.toLocaleString()} CUP\n`;
         message += `   💰 Costo total: $${totalCost.toLocaleString()} CUP\n\n`;
       });
       message += `💰 Subtotal base transferencia: $${transferBaseTotal.toLocaleString()} CUP\n`;
-      message += `💳 Recargo total (${transferFeePercentage}%): +$${transferFee.toLocaleString()} CUP\n`;
+      message += `💳 Recargo total (${currentPrices.transferFeePercentage}%): +$${transferFee.toLocaleString()} CUP\n`;
       message += `💰 Subtotal Transferencia: $${transferTotal.toLocaleString()} CUP\n`;
       message += `📊 Total capítulos: ${transferNovelas.reduce((sum, n) => sum + n.capitulos, 0)}\n\n`;
     }
@@ -381,13 +405,13 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                   <div className="bg-gradient-to-r from-green-400 to-emerald-400 p-3 rounded-xl mr-4">
                     <span className="text-2xl">💰</span>
                   </div>
-                  <p className="font-bold text-lg">Costo: ${novelPricePerChapter} CUP por cada capítulo</p>
+                  <p className="font-bold text-lg">Costo: ${currentPrices.novelPricePerChapter} CUP por cada capítulo</p>
                 </div>
                 <div className="flex items-center bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-orange-200 shadow-sm">
                   <div className="bg-gradient-to-r from-orange-400 to-red-400 p-3 rounded-xl mr-4">
                     <span className="text-2xl">💳</span>
                   </div>
-                  <p className="font-bold text-lg">Transferencia bancaria: +{transferFeePercentage}% de recargo</p>
+                  <p className="font-bold text-lg">Transferencia bancaria: +{currentPrices.transferFeePercentage}% de recargo</p>
                 </div>
                 <div className="flex items-center bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-blue-200 shadow-sm">
                   <div className="bg-gradient-to-r from-blue-400 to-cyan-400 p-3 rounded-xl mr-4">
@@ -456,7 +480,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
             </div>
 
             {/* Show message when no novels available */}
-            {allNovelas.length === 0 && (
+            {currentNovels.length === 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
                 <BookOpen className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-yellow-800 mb-2">
@@ -469,31 +493,31 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
             )}
 
             {/* Novels list */}
-            {showNovelList && allNovelas.length > 0 && (
+            {showNovelList && currentNovels.length > 0 && (
               <div className="bg-white rounded-2xl border-2 border-gray-200 overflow-hidden">
-                {/* Filters */}
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 border-b border-gray-200">
-                  <div className="flex items-center mb-4">
-                    <Filter className="h-5 w-5 text-purple-600 mr-2" />
-                    <h4 className="text-lg font-bold text-purple-900">Filtros de Búsqueda</h4>
+                {/* Enhanced Filters */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 border-b border-gray-200">
+                  <div className="flex items-center mb-6">
+                    <Filter className="h-6 w-6 text-purple-600 mr-3" />
+                    <h4 className="text-xl font-bold text-purple-900">Filtros Avanzados de Búsqueda</h4>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="text"
                         placeholder="Buscar por título..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white shadow-sm"
                       />
                     </div>
                     
                     <select
                       value={selectedGenre}
                       onChange={(e) => setSelectedGenre(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white shadow-sm"
                     >
                       <option value="">Todos los géneros</option>
                       {uniqueGenres.map(genre => (
@@ -504,7 +528,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                     <select
                       value={selectedYear}
                       onChange={(e) => setSelectedYear(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white shadow-sm"
                     >
                       <option value="">Todos los años</option>
                       {uniqueYears.map(year => (
@@ -516,7 +540,7 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as 'titulo' | 'año' | 'capitulos')}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        className="flex-1 px-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm bg-white shadow-sm"
                       >
                         <option value="titulo">Título</option>
                         <option value="año">Año</option>
@@ -525,17 +549,17 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                       
                       <button
                         onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                        className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
+                        className="px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl transition-colors shadow-sm"
                         title={`Ordenar ${sortOrder === 'asc' ? 'descendente' : 'ascendente'}`}
                       >
-                        {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                        {sortOrder === 'asc' ? <SortAsc className="h-5 w-5" /> : <SortDesc className="h-5 w-5" />}
                       </button>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-                    <div className="text-sm text-purple-700">
-                      Mostrando {filteredNovelas.length} de {allNovelas.length} novelas
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
+                    <div className="text-sm text-purple-700 bg-white px-4 py-2 rounded-full shadow-sm">
+                      📊 Mostrando <span className="font-bold">{filteredNovelas.length}</span> de <span className="font-bold">{currentNovels.length}</span> novelas
                       {(searchTerm || selectedGenre || selectedYear) && (
                         <span className="ml-2 text-purple-600">• Filtros activos</span>
                       )}
@@ -544,190 +568,201 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                     {(searchTerm || selectedGenre || selectedYear || sortBy !== 'titulo' || sortOrder !== 'asc') && (
                       <button
                         onClick={clearFilters}
-                        className="text-sm bg-purple-200 hover:bg-purple-300 text-purple-800 px-3 py-1 rounded-lg transition-colors"
+                        className="text-sm bg-purple-200 hover:bg-purple-300 text-purple-800 px-4 py-2 rounded-xl transition-colors shadow-sm font-medium"
                       >
-                        Limpiar filtros
+                        🗑️ Limpiar filtros
                       </button>
                     )}
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-4 border-b border-gray-200">
+                <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-6 border-b border-gray-200">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
-                    <h4 className="text-lg font-bold text-gray-900">
+                    <h4 className="text-xl font-bold text-gray-900 flex items-center">
+                      <span className="mr-3">📋</span>
                       Seleccionar Novelas ({selectedNovelas.length} seleccionadas)
                     </h4>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-3">
                       <button
                         onClick={selectAllNovelas}
-                        className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"
                       >
-                        Todas
+                        ✅ Todas
                       </button>
                       <button
                         onClick={clearAllNovelas}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors shadow-sm"
                       >
-                        Ninguna
+                        ❌ Ninguna
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Totals summary */}
+                {/* Enhanced Totals summary */}
                 {selectedNovelas.length > 0 && (
-                  <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 border-b border-gray-200">
-                    <div className="flex items-center mb-4">
-                      <Calculator className="h-6 w-6 text-green-600 mr-3" />
-                      <h5 className="text-lg font-bold text-gray-900">Resumen de Selección</h5>
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 border-b border-gray-200">
+                    <div className="flex items-center mb-6">
+                      <Calculator className="h-7 w-7 text-green-600 mr-3" />
+                      <h5 className="text-xl font-bold text-gray-900">💰 Resumen de Selección</h5>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                      <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-purple-600">{selectedNovelas.length}</div>
-                        <div className="text-sm text-gray-600">Novelas</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                      <div className="bg-white rounded-2xl p-6 border-2 border-purple-200 text-center shadow-lg transform hover:scale-105 transition-all">
+                        <div className="text-3xl font-bold text-purple-600 mb-2">{selectedNovelas.length}</div>
+                        <div className="text-sm text-gray-600 font-medium">📚 Novelas</div>
                       </div>
-                      <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-blue-600">{totals.totalCapitulos}</div>
-                        <div className="text-sm text-gray-600">Capítulos</div>
+                      <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 text-center shadow-lg transform hover:scale-105 transition-all">
+                        <div className="text-3xl font-bold text-blue-600 mb-2">{totals.totalCapitulos}</div>
+                        <div className="text-sm text-gray-600 font-medium">📺 Capítulos</div>
                       </div>
-                      <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-green-600">${totals.cashTotal.toLocaleString()}</div>
-                        <div className="text-sm text-gray-600">Efectivo</div>
+                      <div className="bg-white rounded-2xl p-6 border-2 border-green-200 text-center shadow-lg transform hover:scale-105 transition-all">
+                        <div className="text-3xl font-bold text-green-600 mb-2">${totals.cashTotal.toLocaleString()}</div>
+                        <div className="text-sm text-gray-600 font-medium">💵 Efectivo</div>
                       </div>
-                      <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-orange-600">${totals.transferTotal.toLocaleString()}</div>
-                        <div className="text-sm text-gray-600">Transferencia</div>
+                      <div className="bg-white rounded-2xl p-6 border-2 border-orange-200 text-center shadow-lg transform hover:scale-105 transition-all">
+                        <div className="text-3xl font-bold text-orange-600 mb-2">${totals.transferTotal.toLocaleString()}</div>
+                        <div className="text-sm text-gray-600 font-medium">💳 Transferencia</div>
                       </div>
                     </div>
                     
-                    <div className="bg-gradient-to-r from-green-100 to-blue-100 rounded-lg p-4 border-2 border-green-300">
+                    <div className="bg-gradient-to-r from-green-100 to-blue-100 rounded-2xl p-6 border-2 border-green-300 shadow-lg">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg font-bold text-gray-900">TOTAL A PAGAR:</span>
-                        <span className="text-2xl font-bold text-green-600">${totals.grandTotal.toLocaleString()} CUP</span>
+                        <span className="text-xl font-bold text-gray-900">🎯 TOTAL A PAGAR:</span>
+                        <span className="text-3xl font-bold text-green-600">${totals.grandTotal.toLocaleString()} CUP</span>
                       </div>
                       {totals.transferFee > 0 && (
-                        <div className="text-sm text-orange-600 mt-2">
-                          Incluye ${totals.transferFee.toLocaleString()} CUP de recargo por transferencia ({transferFeePercentage}%)
+                        <div className="text-sm text-orange-600 mt-3 bg-orange-100 px-4 py-2 rounded-xl">
+                          💳 Incluye ${totals.transferFee.toLocaleString()} CUP de recargo por transferencia ({currentPrices.transferFeePercentage}%)
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                <div className="max-h-96 overflow-y-auto p-4">
-                  <div className="grid grid-cols-1 gap-3">
+                <div className="max-h-96 overflow-y-auto p-6">
+                  <div className="grid grid-cols-1 gap-4">
                     {filteredNovelas.length > 0 ? (
                       filteredNovelas.map((novela) => {
                       const isSelected = selectedNovelas.includes(novela.id);
-                      const baseCost = novela.capitulos * novelPricePerChapter;
-                      const transferCost = Math.round(baseCost * (1 + transferFeePercentage / 100));
+                      const baseCost = novela.capitulos * currentPrices.novelPricePerChapter;
+                      const transferCost = Math.round(baseCost * (1 + currentPrices.transferFeePercentage / 100));
                       const finalCost = novela.paymentType === 'transfer' ? transferCost : baseCost;
                       
                       return (
                         <div
                           key={novela.id}
-                          className={`p-4 rounded-xl border transition-all ${
+                          className={`p-6 rounded-2xl border-2 transition-all duration-300 transform hover:scale-[1.02] ${
                             isSelected 
-                              ? 'bg-purple-50 border-purple-300 shadow-md' 
-                              : 'bg-gray-50 border-gray-200 hover:bg-purple-25 hover:border-purple-200'
+                              ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 shadow-lg' 
+                              : 'bg-gray-50 border-gray-200 hover:bg-purple-25 hover:border-purple-200 hover:shadow-md'
                           }`}
                         >
-                          <div className="flex items-start space-x-4">
+                          <div className="flex items-start space-x-6">
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleNovelToggle(novela.id)}
-                              className="mt-1 h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                              className="mt-2 h-6 w-6 text-purple-600 focus:ring-purple-500 border-gray-300 rounded-lg"
                             />
                             
                             <div className="flex-1">
-                              <div className="flex flex-col sm:flex-row sm:items-start justify-between space-y-3 sm:space-y-0">
+                              <div className="flex flex-col lg:flex-row lg:items-start justify-between space-y-4 lg:space-y-0">
                                 <div className="flex-1">
-                                  <p className="font-semibold text-gray-900 mb-2">{novela.titulo}</p>
-                                  <div className="flex flex-wrap gap-2 text-sm text-gray-600 mb-3">
-                                    <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                                      {novela.genero}
+                                  <p className="font-bold text-xl text-gray-900 mb-3">{novela.titulo}</p>
+                                  <div className="flex flex-wrap gap-3 text-sm text-gray-600 mb-4">
+                                    <span className="bg-purple-100 text-purple-700 px-3 py-2 rounded-full font-medium">
+                                      🎭 {novela.genero}
                                     </span>
-                                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                                      {novela.capitulos} capítulos
+                                    <span className="bg-blue-100 text-blue-700 px-3 py-2 rounded-full font-medium">
+                                      📺 {novela.capitulos} capítulos
                                     </span>
-                                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                      {novela.año}
+                                    <span className="bg-green-100 text-green-700 px-3 py-2 rounded-full font-medium">
+                                      📅 {novela.año}
                                     </span>
                                   </div>
                                   
-                                  {/* Payment type selector */}
-                                  <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                                    <span className="text-sm font-medium text-gray-700">Tipo de pago:</span>
-                                    <div className="flex space-x-2">
-                                      <button
-                                        onClick={() => handlePaymentTypeChange(novela.id, 'cash')}
-                                        className={`px-3 py-2 rounded-full text-xs font-medium transition-colors ${
-                                          novela.paymentType === 'cash'
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-gray-200 text-gray-600 hover:bg-green-100'
-                                        }`}
-                                      >
-                                        <DollarSign className="h-3 w-3 inline mr-1" />
-                                        Efectivo
-                                      </button>
-                                      <button
-                                        onClick={() => handlePaymentTypeChange(novela.id, 'transfer')}
-                                        className={`px-3 py-2 rounded-full text-xs font-medium transition-colors ${
-                                          novela.paymentType === 'transfer'
-                                            ? 'bg-orange-500 text-white'
-                                            : 'bg-gray-200 text-gray-600 hover:bg-orange-100'
-                                        }`}
-                                      >
-                                        <CreditCard className="h-3 w-3 inline mr-1" />
-                                        Transferencia (+{transferFeePercentage}%)
-                                      </button>
+                                  {novela.descripcion && (
+                                    <p className="text-gray-600 mb-4 bg-white p-3 rounded-xl border border-gray-200">
+                                      {novela.descripcion}
+                                    </p>
+                                  )}
+                                  
+                                  {/* Enhanced Payment type selector */}
+                                  <div className="bg-white rounded-xl p-4 border border-gray-200">
+                                    <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
+                                      <span className="text-sm font-bold text-gray-700">💳 Tipo de pago:</span>
+                                      <div className="flex space-x-3">
+                                        <button
+                                          onClick={() => handlePaymentTypeChange(novela.id, 'cash')}
+                                          className={`px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 transform hover:scale-105 ${
+                                            novela.paymentType === 'cash'
+                                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                                              : 'bg-gray-200 text-gray-600 hover:bg-green-100 hover:text-green-700'
+                                          }`}
+                                        >
+                                          <DollarSign className="h-4 w-4 inline mr-2" />
+                                          💵 Efectivo
+                                        </button>
+                                        <button
+                                          onClick={() => handlePaymentTypeChange(novela.id, 'transfer')}
+                                          className={`px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 transform hover:scale-105 ${
+                                            novela.paymentType === 'transfer'
+                                              ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                                              : 'bg-gray-200 text-gray-600 hover:bg-orange-100 hover:text-orange-700'
+                                          }`}
+                                        >
+                                          <CreditCard className="h-4 w-4 inline mr-2" />
+                                          💳 Transferencia
+                                          <span className="ml-1 text-xs opacity-90">
+                                            (+{currentPrices.transferFeePercentage}%)
+                                          </span>
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                                 
-                                <div className="text-right sm:ml-4">
-                                  <div className={`text-lg font-bold ${
+                                <div className="text-right lg:ml-6 bg-white rounded-2xl p-4 border-2 border-gray-200 min-w-[200px]">
+                                  <div className={`text-2xl font-bold mb-2 ${
                                     novela.paymentType === 'cash' ? 'text-green-600' : 'text-orange-600'
                                   }`}>
                                     ${finalCost.toLocaleString()} CUP
                                   </div>
                                   {novela.paymentType === 'transfer' && (
-                                    <div className="text-xs text-gray-500">
-                                      Base: ${baseCost.toLocaleString()} CUP
-                                      <br />
-                                      Recargo: +${(transferCost - baseCost).toLocaleString()} CUP
+                                    <div className="text-xs text-gray-500 space-y-1">
+                                      <div>💰 Base: ${baseCost.toLocaleString()} CUP</div>
+                                      <div>💳 Recargo: +${(transferCost - baseCost).toLocaleString()} CUP</div>
                                     </div>
                                   )}
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    ${novelPricePerChapter} CUP × {novela.capitulos} cap.
+                                  <div className="text-xs text-gray-500 mt-2 bg-gray-100 px-2 py-1 rounded-lg">
+                                    ${currentPrices.novelPricePerChapter} CUP × {novela.capitulos} cap.
                                   </div>
                                 </div>
                               </div>
                             </div>
                             
                             {isSelected && (
-                              <Check className="h-5 w-5 text-purple-600 mt-1" />
+                              <Check className="h-6 w-6 text-purple-600 mt-2 bg-purple-100 rounded-full p-1" />
                             )}
                           </div>
                         </div>
                       );
                       })
                     ) : (
-                      <div className="text-center py-8">
-                        <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                          No se encontraron novelas
+                      <div className="text-center py-12">
+                        <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                          🔍 No se encontraron novelas
                         </h3>
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-gray-600 mb-6">
                           No hay novelas que coincidan con los filtros seleccionados.
                         </p>
                         <button
                           onClick={clearFilters}
-                          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                          className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg"
                         >
-                          Limpiar filtros
+                          🗑️ Limpiar filtros
                         </button>
                       </div>
                     )}
@@ -735,27 +770,27 @@ export function NovelasModal({ isOpen, onClose }: NovelasModalProps) {
                 </div>
 
                 {selectedNovelas.length > 0 && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 border-t border-gray-200">
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 border-t border-gray-200">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
                       <div className="text-center sm:text-left">
-                        <p className="font-semibold text-gray-900">
-                          {selectedNovelas.length} novelas seleccionadas
+                        <p className="font-bold text-lg text-gray-900">
+                          📚 {selectedNovelas.length} novelas seleccionadas
                         </p>
                         <p className="text-sm text-gray-600">
-                          Total: ${totals.grandTotal.toLocaleString()} CUP
+                          💰 Total: ${totals.grandTotal.toLocaleString()} CUP
                         </p>
                       </div>
                       <button
                         onClick={sendSelectedNovelas}
                         disabled={selectedNovelas.length === 0}
-                        className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center ${
+                        className={`px-8 py-4 rounded-2xl font-bold transition-all duration-300 transform hover:scale-105 flex items-center justify-center shadow-lg ${
                           selectedNovelas.length > 0
                             ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        <MessageCircle className="h-5 w-5 mr-2" />
-                        Enviar por WhatsApp
+                        <MessageCircle className="h-6 w-6 mr-3" />
+                        📱 Enviar por WhatsApp
                       </button>
                     </div>
                   </div>

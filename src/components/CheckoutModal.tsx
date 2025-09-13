@@ -2,7 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { X, MapPin, User, Phone, Home, CreditCard, DollarSign, MessageCircle, Calculator, Truck, ExternalLink } from 'lucide-react';
 
 // ZONAS DE ENTREGA EMBEBIDAS - Generadas automáticamente
-const EMBEDDED_DELIVERY_ZONES = [];
+const EMBEDDED_DELIVERY_ZONES = [
+  {
+    "id": 1,
+    "name": "Santiago de Cuba > Santiago de Cuba > Centro",
+    "cost": 50,
+    "createdAt": "2025-01-09T20:47:45.529Z",
+    "updatedAt": "2025-01-09T20:47:45.529Z"
+  },
+  {
+    "id": 2,
+    "name": "Santiago de Cuba > Santiago de Cuba > Vista Alegre",
+    "cost": 30,
+    "createdAt": "2025-01-09T20:47:45.529Z",
+    "updatedAt": "2025-01-09T20:47:45.529Z"
+  }
+];
 
 // PRECIOS EMBEBIDOS
 const EMBEDDED_PRICES = {
@@ -46,6 +61,21 @@ interface CheckoutModalProps {
   total: number;
 }
 
+// Validación de números de teléfono cubanos
+const validateCubanPhoneNumber = (phone: string): boolean => {
+  // Remover espacios, guiones y paréntesis
+  const cleanPhone = phone.replace(/[\s\-()]/g, '');
+  
+  // Patrones para números cubanos
+  const patterns = [
+    /^(\+53)?[5-9]\d{7}$/, // Móviles: 5xxxxxxx, 6xxxxxxx, 7xxxxxxx, 8xxxxxxx, 9xxxxxxx
+    /^(\+53)?[2-4]\d{6,7}$/, // Fijos: 2xxxxxxx, 3xxxxxxx, 4xxxxxxx (7-8 dígitos)
+    /^(\+53)?7[0-9]\d{6}$/, // Números especiales que empiezan con 7
+  ];
+  
+  return patterns.some(pattern => pattern.test(cleanPhone));
+};
+
 export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: CheckoutModalProps) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     fullName: '',
@@ -56,10 +86,21 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
   const [deliveryCost, setDeliveryCost] = useState(0);
   const [pickupLocation, setPickupLocation] = useState(false);
   const [showLocationMap, setShowLocationMap] = useState(false);
-  const [errors, setErrors] = useState<Partial<CustomerInfo>>({});
+  const [errors, setErrors] = useState<Partial<CustomerInfo & { zone: string }>>({});
+  const [currentDeliveryZones, setCurrentDeliveryZones] = useState(EMBEDDED_DELIVERY_ZONES);
 
-  // Use embedded delivery zones
-  const deliveryZones = EMBEDDED_DELIVERY_ZONES;
+  // Listen for delivery zone updates from admin panel
+  useEffect(() => {
+    const handleDeliveryZoneUpdate = (event: CustomEvent) => {
+      setCurrentDeliveryZones(event.detail);
+    };
+
+    window.addEventListener('admin_delivery_zones_updated', handleDeliveryZoneUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('admin_delivery_zones_updated', handleDeliveryZoneUpdate as EventListener);
+    };
+  }, []);
 
   // Agregar opción de recogida en el local
   const pickupOption = {
@@ -68,21 +109,21 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     cost: 0
   };
 
-  const allDeliveryOptions = [pickupOption, ...deliveryZones];
+  const allDeliveryOptions = [pickupOption, ...currentDeliveryZones];
 
   useEffect(() => {
     if (selectedZone === 'pickup') {
       setDeliveryCost(0);
       setPickupLocation(true);
     } else if (selectedZone) {
-      const zone = deliveryZones.find(z => z.name === selectedZone);
+      const zone = currentDeliveryZones.find(z => z.name === selectedZone);
       setDeliveryCost(zone ? zone.cost : 0);
       setPickupLocation(false);
     }
-  }, [selectedZone, deliveryZones]);
+  }, [selectedZone, currentDeliveryZones]);
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<CustomerInfo> = {};
+    const newErrors: Partial<CustomerInfo & { zone: string }> = {};
 
     if (!customerInfo.fullName.trim()) {
       newErrors.fullName = 'El nombre completo es requerido';
@@ -90,12 +131,16 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
 
     if (!customerInfo.phone.trim()) {
       newErrors.phone = 'El teléfono es requerido';
-    } else if (!/^[+]?[0-9\s\-()]{8,}$/.test(customerInfo.phone)) {
-      newErrors.phone = 'Formato de teléfono inválido';
+    } else if (!validateCubanPhoneNumber(customerInfo.phone)) {
+      newErrors.phone = 'Número de teléfono cubano inválido. Ej: +53 5469 0878 o 54690878';
     }
 
     if (!pickupLocation && !customerInfo.address.trim()) {
       newErrors.address = 'La dirección es requerida para entrega a domicilio';
+    }
+
+    if (!selectedZone) {
+      newErrors.zone = 'Debe seleccionar una opción de entrega';
     }
 
     setErrors(newErrors);
@@ -106,11 +151,6 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     e.preventDefault();
     
     if (!validateForm()) {
-      return;
-    }
-
-    if (!selectedZone) {
-      alert('Por favor selecciona una opción de entrega');
       return;
     }
 
@@ -135,6 +175,13 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
     setCustomerInfo(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleZoneChange = (value: string) => {
+    setSelectedZone(value);
+    if (errors.zone) {
+      setErrors(prev => ({ ...prev, zone: undefined }));
     }
   };
 
@@ -208,32 +255,36 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors.phone ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="+53 5469 0878"
+                    placeholder="+53 5469 0878 o 54690878"
                   />
                   {errors.phone && (
                     <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
                   )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Formatos válidos: +53 5469 0878, 54690878, 22 123456
+                  </p>
                 </div>
 
-                {!pickupLocation && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dirección Completa *
-                    </label>
-                    <textarea
-                      value={customerInfo.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      rows={3}
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
-                        errors.address ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Calle, número, entre calles, referencias..."
-                    />
-                    {errors.address && (
-                      <p className="text-red-500 text-sm mt-1">{errors.address}</p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dirección Completa *
+                  </label>
+                  <textarea
+                    value={customerInfo.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    rows={3}
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none ${
+                      errors.address ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Calle, número, entre calles, referencias..."
+                  />
+                  {errors.address && (
+                    <p className="text-red-500 text-sm mt-1">{errors.address}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {pickupLocation ? 'Opcional para recogida en local' : 'Requerido para entrega a domicilio'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -241,8 +292,12 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
             <div className="bg-gray-50 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <MapPin className="h-5 w-5 mr-2 text-green-600" />
-                Opciones de Entrega
+                Opciones de Entrega *
               </h3>
+              
+              {errors.zone && (
+                <p className="text-red-500 text-sm mb-4">{errors.zone}</p>
+              )}
               
               <div className="space-y-3">
                 {allDeliveryOptions.map((option) => (
@@ -260,7 +315,7 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
                         name="deliveryOption"
                         value={option.id === 'pickup' ? 'pickup' : option.name}
                         checked={selectedZone === (option.id === 'pickup' ? 'pickup' : option.name)}
-                        onChange={(e) => setSelectedZone(e.target.value)}
+                        onChange={(e) => handleZoneChange(e.target.value)}
                         className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500"
                       />
                       <div>
@@ -310,7 +365,8 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
                 </div>
               )}
 
-              {allDeliveryOptions.length === 1 && (
+              {/* Show message when no delivery zones are available */}
+              {currentDeliveryZones.length === 0 && (
                 <div className="text-center py-8">
                   <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -333,7 +389,7 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Subtotal ({items.length} elementos)</span>
-                  <span className="font-semibold">${total.toLocaleString()} CUP</span>
+                  <span className="font-semibold">$${total.toLocaleString()} CUP</span>
                 </div>
                 
                 {selectedZone && (
@@ -351,7 +407,7 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total</span>
                     <span className="text-xl font-bold text-blue-600">
-                      ${(total + deliveryCost).toLocaleString()} CUP
+                      $${(total + deliveryCost).toLocaleString()} CUP
                     </span>
                   </div>
                 </div>
@@ -361,8 +417,7 @@ export function CheckoutModal({ isOpen, onClose, onCheckout, items, total }: Che
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!selectedZone}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center"
             >
               <MessageCircle className="h-5 w-5 mr-2" />
               Enviar Pedido por WhatsApp

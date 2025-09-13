@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DollarSign, Tv, Film, Star, CreditCard } from 'lucide-react';
 
 // PRECIOS EMBEBIDOS - Generados automáticamente
@@ -17,22 +17,32 @@ interface PriceCardProps {
 }
 
 export function PriceCard({ type, selectedSeasons = [], episodeCount = 0, isAnime = false }: PriceCardProps) {
-  // Use embedded prices
-  const moviePrice = EMBEDDED_PRICES.moviePrice;
-  const seriesPrice = EMBEDDED_PRICES.seriesPrice;
-  const transferFeePercentage = EMBEDDED_PRICES.transferFeePercentage;
-  
+  const [currentPrices, setCurrentPrices] = useState(EMBEDDED_PRICES);
+
+  // Listen for price updates from admin panel
+  useEffect(() => {
+    const handlePriceUpdate = (event: CustomEvent) => {
+      setCurrentPrices(event.detail);
+    };
+
+    window.addEventListener('admin_prices_updated', handlePriceUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('admin_prices_updated', handlePriceUpdate as EventListener);
+    };
+  }, []);
+
   const calculatePrice = () => {
     if (type === 'movie') {
-      return moviePrice;
+      return currentPrices.moviePrice;
     } else {
       // Series: dynamic price per season
-      return selectedSeasons.length * seriesPrice;
+      return selectedSeasons.length * currentPrices.seriesPrice;
     }
   };
 
   const price = calculatePrice();
-  const transferPrice = Math.round(price * (1 + transferFeePercentage / 100));
+  const transferPrice = Math.round(price * (1 + currentPrices.transferFeePercentage / 100));
   
   const getIcon = () => {
     if (type === 'movie') {
@@ -100,7 +110,7 @@ export function PriceCard({ type, selectedSeasons = [], episodeCount = 0, isAnim
             </span>
           </div>
           <div className="text-sm text-orange-600 font-semibold bg-orange-100 px-2 py-1 rounded-full text-center">
-            +{transferFeePercentage}% recargo bancario
+            +{currentPrices.transferFeePercentage}% recargo bancario
           </div>
         </div>
         
