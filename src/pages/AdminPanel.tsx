@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, DollarSign, MapPin, BookOpen, Bell, Download, Upload, Trash2, CreditCard as Edit, Plus, Save, X, Eye, EyeOff, LogOut, Home, Monitor, Smartphone, Globe, Calendar, Image, Camera, Check, AlertCircle, Info, RefreshCw, Database, FolderSync as Sync, Activity, TrendingUp, Users, ShoppingCart, Clock, Zap, Heart, Star } from 'lucide-react';
+import { Settings, DollarSign, MapPin, BookOpen, Bell, Download, Upload, Trash2, CreditCard as Edit, Plus, Save, X, Eye, EyeOff, LogOut, Home, Monitor, Smartphone, Globe, Calendar, Image, Camera, Check, AlertCircle, Info, RefreshCw, Database, FolderSync as Sync, Activity, TrendingUp, Users, ShoppingCart, Clock, Zap, Heart, Star, PackageOpen } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
+import { generateCompleteSourceCode } from '../utils/sourceCodeGenerator';
 
 interface NovelForm {
   titulo: string;
@@ -224,6 +225,28 @@ export function AdminPanel() {
     if (success) {
       setImportData('');
       setShowImportModal(false);
+    }
+  };
+
+  const handleFullBackupExport = async () => {
+    try {
+      addNotification('Generando backup completo del sistema...', 'info');
+
+      const fullSystemConfig = {
+        version: state.systemConfig.version,
+        prices: state.prices,
+        deliveryZones: state.deliveryZones,
+        novels: state.novels,
+        settings: state.systemConfig,
+        syncStatus: state.syncStatus,
+        exportDate: new Date().toISOString(),
+      };
+
+      await generateCompleteSourceCode(fullSystemConfig);
+      addNotification('Backup completo generado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al generar backup completo:', error);
+      addNotification('Error al generar el backup completo', 'error');
     }
   };
 
@@ -985,7 +1008,7 @@ export function AdminPanel() {
                       <Download className="h-4 w-4 mr-2" />
                       Exportar Configuración
                     </button>
-                    
+
                     <button
                       onClick={() => setShowImportModal(true)}
                       className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg flex items-center justify-center transition-colors"
@@ -993,6 +1016,21 @@ export function AdminPanel() {
                       <Upload className="h-4 w-4 mr-2" />
                       Importar Configuración
                     </button>
+
+                    <button
+                      onClick={handleFullBackupExport}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg flex items-center justify-center transition-colors shadow-lg"
+                    >
+                      <PackageOpen className="h-4 w-4 mr-2" />
+                      Exportar Backup Full
+                    </button>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
+                      <p className="text-xs text-amber-800">
+                        <Info className="h-3 w-3 inline mr-1" />
+                        El Backup Full incluye todos los archivos del sistema con la configuración aplicada
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
