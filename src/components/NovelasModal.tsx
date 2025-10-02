@@ -128,15 +128,19 @@ export function NovelasModal({ isOpen, onClose, onFinalizePedido }: NovelasModal
     }
   }, [adminNovels]);
 
-  // Filter novels function
+  // Filter novels function with improved space handling
   const getFilteredNovelas = () => {
     let filtered = novelasWithPayment.filter(novela => {
-      const matchesSearch = novela.titulo.toLowerCase().includes(searchTerm.toLowerCase());
+      // Normalize search term and title for better matching with spaces
+      const normalizedSearch = searchTerm.toLowerCase().trim().replace(/\s+/g, ' ');
+      const normalizedTitle = novela.titulo.toLowerCase().trim().replace(/\s+/g, ' ');
+      const matchesSearch = normalizedTitle.includes(normalizedSearch);
+
       const matchesGenre = selectedGenre === '' || novela.genero === selectedGenre;
       const matchesYear = selectedYear === '' || novela.año.toString() === selectedYear;
       const matchesCountry = selectedCountry === '' || novela.pais === selectedCountry;
       const matchesStatus = selectedStatus === '' || novela.estado === selectedStatus;
-      
+
       return matchesSearch && matchesGenre && matchesYear && matchesCountry && matchesStatus;
     });
 
