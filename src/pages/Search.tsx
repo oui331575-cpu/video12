@@ -38,17 +38,12 @@ export function SearchPage() {
     try {
       if (!append) setLoading(true);
       
-      // Search novels first - normalize spaces for better matching
-      const normalizedQuery = searchQuery.toLowerCase().trim().replace(/\s+/g, ' ');
-      const novelMatches = adminState.novels?.filter(novel => {
-        const normalizedTitle = novel.titulo.toLowerCase().trim().replace(/\s+/g, ' ');
-        const normalizedGenre = novel.genero.toLowerCase().trim().replace(/\s+/g, ' ');
-        const normalizedCountry = (novel.pais || '').toLowerCase().trim().replace(/\s+/g, ' ');
-
-        return normalizedTitle.includes(normalizedQuery) ||
-               normalizedGenre.includes(normalizedQuery) ||
-               normalizedCountry.includes(normalizedQuery);
-      }) || [];
+      // Search novels first
+      const novelMatches = adminState.novels?.filter(novel =>
+        novel.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        novel.genero.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (novel.pais && novel.pais.toLowerCase().includes(searchQuery.toLowerCase()))
+      ) || [];
       
       setNovelResults(novelMatches);
       

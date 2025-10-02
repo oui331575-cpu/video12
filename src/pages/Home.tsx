@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, TrendingUp, Star, Monitor, Filter, Calendar, Clock, Flame, Library, Play, Clapperboard, Sparkles, Radio, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, TrendingUp, Star, Monitor, Filter, Calendar, Clock, Flame, Library, Play, Clapperboard, Sparkles } from 'lucide-react';
 import { tmdbService } from '../services/tmdb';
 import { useCart } from '../context/CartContext';
 import { useAdmin } from '../context/AdminContext';
@@ -32,11 +32,6 @@ export function Home() {
   const timeWindowLabels = {
     day: 'Hoy + Novelas en Transmisión',
     week: 'Esta Semana + Novelas Finalizadas'
-  };
-
-  const timeWindowIcons = {
-    day: Radio,
-    week: CheckCircle2
   };
 
   const fetchTrendingContent = async (timeWindow: TrendingTimeWindow) => {
@@ -258,23 +253,20 @@ export function Home() {
             <div className="flex items-center space-x-1 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
               <Filter className="h-4 w-4 text-gray-500 ml-2" />
               <span className="text-sm font-medium text-gray-700 px-2">Período:</span>
-              {Object.entries(timeWindowLabels).map(([key, label]) => {
-                const IconComponent = timeWindowIcons[key as TrendingTimeWindow];
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setTrendingTimeWindow(key as TrendingTimeWindow)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center ${
-                      trendingTimeWindow === key
-                        ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-md transform scale-105'
-                        : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
-                    }`}
-                  >
-                    <IconComponent className="h-3 w-3 mr-1" />
-                    {label}
-                  </button>
-                );
-              })}
+              {Object.entries(timeWindowLabels).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setTrendingTimeWindow(key as TrendingTimeWindow)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center ${
+                    trendingTimeWindow === key
+                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-md transform scale-105'
+                      : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  {key === 'day' ? <Calendar className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
           
@@ -292,17 +284,8 @@ export function Home() {
           {novelTrendingContent.length > 0 && (
             <div className="mt-8">
               <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                {trendingTimeWindow === 'day' ? (
-                  <>
-                    <Radio className="mr-2 h-5 w-5 text-red-500" />
-                    Novelas En Transmisión
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mr-2 h-5 w-5 text-green-500" />
-                    Novelas Finalizadas Recientemente
-                  </>
-                )}
+                <Library className="mr-2 h-5 w-5 text-pink-500" />
+                📺 Novelas {trendingTimeWindow === 'day' ? 'En Transmisión' : 'Finalizadas Recientemente'}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                 {novelTrendingContent.map((novel) => (
